@@ -1,0 +1,8 @@
+pygetwindow
+pyautogui
+opencv-python
+numpy
+pandas
+pyperclip
+openpyxl
+pywinctl

@@ -153,6 +153,7 @@ class GameCheaterGUI:
         self.subcategory_combo = None
         self.search_var = tk.StringVar()
         self.search_entry = None
+        self.grade_var = tk.StringVar()
         
         # 기본 카테고리 선택
         self.category_combo.current(0)  # "기타" 선택
@@ -171,7 +172,7 @@ class GameCheaterGUI:
         self.execute_btn = ttk.Button(self.button_frame, text="치트 실행", command=self.execute_selected_cheat)
         self.execute_btn.pack(side=tk.RIGHT, padx=5)
     
-        # 설명 표시 영역
+        # 설명 표시 영역 (카테고리에 따라 표시 여부 결정)
         self.description_frame = ttk.LabelFrame(cheat_frame, text="치트 설명", padding="10")
         self.description_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
@@ -244,21 +245,54 @@ class GameCheaterGUI:
         for widget in self.subcategory_frame.winfo_children():
             widget.destroy()
         
+        # 설명 영역 표시/숨김 처리
+        if category in ["필터", "검색"]:
+            # 필터, 검색 카테고리에서는 설명 영역 숨김
+            self.description_frame.pack_forget()
+        else:
+            # 기타 카테고리에서는 설명 영역 표시
+            self.description_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
         if category == "필터":
             # UI를 결과 목록 방식으로 변경
             self.create_results_list_ui()
             
+            # 필터 하위 카테고리 프레임 생성
+            filter_frame = ttk.Frame(self.subcategory_frame)
+            filter_frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5, sticky=tk.W+tk.E)
+            
             # 필터 하위 카테고리 드롭다운 생성
-            ttk.Label(self.subcategory_frame, text="필터 항목:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+            ttk.Label(filter_frame, text="필터 항목:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
             
             self.subcategory_var = tk.StringVar()
-            self.subcategory_combo = ttk.Combobox(self.subcategory_frame, textvariable=self.subcategory_var, 
+            self.subcategory_combo = ttk.Combobox(filter_frame, textvariable=self.subcategory_var, 
                                                values=self.filter_categories, width=15, state="readonly")
             self.subcategory_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
             
-            # 필터 적용 버튼
-            apply_btn = ttk.Button(self.subcategory_frame, text="적용", command=self.apply_filter)
-            apply_btn.grid(row=0, column=2, padx=5, pady=5)
+            # 등급 필터 생성 (동시에 표시)
+            ttk.Label(filter_frame, text="등급:").grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
+            
+            # 등급 옵션 (한글로 표시, 영어로 필터링)
+            grade_options = [
+                "전체",
+                "일반 (Common)",
+                "고급 (Advance)",
+                "희귀 (Rare)",
+                "에픽 (Epic)",
+                "전설 (Legend)",
+                "신화 (Myth)"
+            ]
+            
+            self.grade_var = tk.StringVar()
+            self.grade_var.set(grade_options[0])  # 기본값 "전체"
+            
+            grade_combo = ttk.Combobox(filter_frame, textvariable=self.grade_var, 
+                                      values=grade_options, width=15, state="readonly")
+            grade_combo.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
+            
+            # 필터 적용 버튼 (둘 다 적용)
+            apply_btn = ttk.Button(filter_frame, text="적용", command=self.load_filtered_data)
+            apply_btn.grid(row=0, column=4, padx=5, pady=5)
             
             # 첫 번째 항목 선택
             if self.filter_categories:
@@ -312,45 +346,22 @@ class GameCheaterGUI:
             
         self.log(f"필터 적용: {selected_filter}")
         
-        # 등급 필터 추가
-        grade_frame = ttk.Frame(self.subcategory_frame)
-        grade_frame.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky=tk.W+tk.E)
-        
-        ttk.Label(grade_frame, text="등급:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
-        
-        # 등급 옵션 (한글로 표시, 영어로 필터링)
-        grade_options = [
-            "전체",
-            "일반 (Common)",
-            "고급 (Advance)",
-            "희귀 (Rare)",
-            "에픽 (Epic)",
-            "전설 (Legend)",
-            "신화 (Myth)"
-        ]
-        
-        self.grade_var = tk.StringVar()
-        self.grade_var.set(grade_options[0])  # 기본값 "전체"
-        
-        grade_combo = ttk.Combobox(grade_frame, textvariable=self.grade_var, 
-                                  values=grade_options, width=15, state="readonly")
-        grade_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-        
-        # 등급 적용 버튼
-        apply_grade_btn = ttk.Button(grade_frame, text="적용", command=self.load_filtered_data)
-        apply_grade_btn.grid(row=0, column=2, padx=5, pady=5)
-        
         # 선택된 필터 저장
         self.selected_filter_category = selected_filter
+        
+        # 바로 필터링된 데이터 로드 (필터 항목과 등급 함께 적용)
+        self.load_filtered_data()
         
     
     def load_filtered_data(self):
         """선택된 필터와 등급에 따라 데이터 로드"""
-        if not hasattr(self, 'selected_filter_category') or not self.selected_filter_category:
+        if not hasattr(self, 'subcategory_var') or not self.subcategory_var.get():
             self.log("필터 카테고리가 선택되지 않았습니다.")
             return
             
-        category = self.selected_filter_category
+        category = self.subcategory_var.get()
+        self.selected_filter_category = category  # 선택된 필터 저장
+        
         grade_text = self.grade_var.get()
         
         # 등급 한글에서 영어로 변환
@@ -409,8 +420,10 @@ class GameCheaterGUI:
             # 결과 표시
             if len(df) == 0:
                 self.log(f"필터링 결과가 없습니다.")
-                self.cheat_combo['values'] = ["검색 결과 없음"]
-                self.cheat_combo.current(0)
+                # 리스트박스 초기화하고 메시지 표시
+                if hasattr(self, 'results_listbox'):
+                    self.results_listbox.delete(0, tk.END)
+                    self.results_listbox.insert(tk.END, "검색 결과 없음")
                 return
                 
             # 데이터를 치트 형식으로 변환
@@ -459,23 +472,17 @@ class GameCheaterGUI:
                         cheat_display_names.append(cheat)
                         self.full_cheat_data[cheat] = cheat
                 
-                # 카테고리 타입에 따라 다른 UI 사용
-                if self.category_var.get() == "기타":
-                    # 드롭다운 방식 (기본)
-                    self.cheat_combo['values'] = cheat_display_names
+                # 결과를 리스트박스에 표시
+                if hasattr(self, 'results_listbox'):
+                    self.results_listbox.delete(0, tk.END)
+                    for item in cheat_display_names:
+                        self.results_listbox.insert(tk.END, item)
+                    
+                    # 첫 번째 항목 선택
                     if len(cheat_display_names) > 0:
-                        self.cheat_combo.current(0)
-                        self.on_cheat_selected(None)
-                else:
-                    # 리스트박스 방식 (필터, 검색)
-                    if hasattr(self, 'results_listbox'):
-                        self.results_listbox.delete(0, tk.END)
-                        for item in cheat_display_names:
-                            self.results_listbox.insert(tk.END, item)
-                        if len(cheat_display_names) > 0:
-                            self.results_listbox.selection_set(0)
-                            self.results_listbox.see(0)
-                            self.on_result_selected(None)
+                        self.results_listbox.selection_set(0)
+                        self.results_listbox.see(0)
+                        self.on_result_selected(None)
                 
                 self.log(f"'{category}' 카테고리에 {len(cheat_list)}개 치트 로드됨")
             else:
@@ -755,15 +762,32 @@ class GameCheaterGUI:
             self.log("경고: 윈도우를 먼저 선택하고 적용해주세요.")
             return
             
-        # 치트 선택 확인
-        selected_cheat_display = self.cheat_var.get()
+        # 현재 카테고리 확인
+        current_category = self.category_var.get()
+        
+        # 치트 선택 확인 - 카테고리에 따라 다른 방식으로 가져옴
+        selected_cheat_display = None
+        
+        if current_category in ["필터", "검색"]:
+            # 리스트박스에서 선택 가져오기
+            if hasattr(self, 'results_listbox'):
+                selection = self.results_listbox.curselection()
+                if selection:
+                    selected_cheat_display = self.results_listbox.get(selection[0])
+                else:
+                    self.log("경고: 실행할 항목을 선택해주세요.")
+                    return
+        else:
+            # 콤보박스에서 선택 가져오기
+            selected_cheat_display = self.cheat_var.get()
+            
         if not selected_cheat_display:
             self.log("경고: 실행할 치트를 선택해주세요.")
             return
         
         # 전체 치트 문자열 가져오기 (코드 포함)
         full_cheat = self.full_cheat_data.get(selected_cheat_display, selected_cheat_display)
-            
+        
         # 먼저 치트 메뉴 열기
         self.log("치트 메뉴 열기 시도 중...")
         if not self.open_cheat_menu():
@@ -775,6 +799,8 @@ class GameCheaterGUI:
             cheat_code = full_cheat.split(" — ")[-1]
         else:
             cheat_code = full_cheat
+        
+        self.log(f"실행할 치트 코드: {cheat_code}")
         
         # 중괄호가 있는지 확인하고 파라미터 값 적용
         if '{' in cheat_code and '}' in cheat_code and self.param_entries:

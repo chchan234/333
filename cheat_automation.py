@@ -157,16 +157,44 @@ class GameCheaterGUI:
         # 기본 카테고리 선택
         self.category_combo.current(0)  # "기타" 선택
         
-        # 치트 선택 영역
-        cheat_select_frame = ttk.LabelFrame(cheat_frame, text="치트 선택", padding="10")
-        cheat_select_frame.pack(fill=tk.X, padx=10, pady=10)
+        # 치트 선택/결과 영역 - 다양한 카테고리에 따라 용도가 달라짐
+        self.cheat_display_frame = ttk.Frame(cheat_frame)
+        self.cheat_display_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # 기본 카테고리("기타")의 치트 선택 영역 생성
+        self.create_cheat_selection_ui()
+        
+        # 실행 버튼 영역
+        self.button_frame = ttk.Frame(cheat_frame)
+        self.button_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        self.execute_btn = ttk.Button(self.button_frame, text="치트 실행", command=self.execute_selected_cheat)
+        self.execute_btn.pack(side=tk.RIGHT, padx=5)
+    
+        # 설명 표시 영역
+        self.description_frame = ttk.LabelFrame(cheat_frame, text="치트 설명", padding="10")
+        self.description_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        self.description_text = tk.Text(self.description_frame, wrap=tk.WORD, width=70, height=10, 
+                                  font=("Courier", 10), state=tk.DISABLED)
+        self.description_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+    def create_cheat_selection_ui(self):
+        """기본 치트 선택 UI 생성 (드롭다운 방식)"""
+        # 기존 위젯 제거
+        for widget in self.cheat_display_frame.winfo_children():
+            widget.destroy()
+            
+        # 치트 선택 영역 생성
+        cheat_select_frame = ttk.LabelFrame(self.cheat_display_frame, text="치트 선택", padding="10")
+        cheat_select_frame.pack(fill=tk.BOTH, expand=True)
         
         ttk.Label(cheat_select_frame, text="치트:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         
         # 치트 드롭다운
         self.cheat_var = tk.StringVar()
         self.cheat_combo = ttk.Combobox(cheat_select_frame, textvariable=self.cheat_var, 
-                                   width=60, state="readonly")
+                                    width=60, state="readonly")
         self.cheat_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         
         # 치트 선택 이벤트 바인딩
@@ -177,20 +205,32 @@ class GameCheaterGUI:
         self.param_frame.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky=tk.W+tk.E)
         self.param_entries = {}  # 파라미터 입력 필드를 저장할 딕셔너리
         
-        # 실행 버튼 영역
-        button_frame = ttk.Frame(cheat_frame)
-        button_frame.pack(fill=tk.X, padx=10, pady=10)
+    def create_results_list_ui(self):
+        """결과 목록 UI 생성 (리스트박스 방식)"""
+        # 기존 위젯 제거
+        for widget in self.cheat_display_frame.winfo_children():
+            widget.destroy()
+            
+        # 결과 목록 영역 생성
+        results_frame = ttk.LabelFrame(self.cheat_display_frame, text="검색 결과", padding="10")
+        results_frame.pack(fill=tk.BOTH, expand=True)
         
-        execute_btn = ttk.Button(button_frame, text="치트 실행", command=self.execute_selected_cheat)
-        execute_btn.pack(side=tk.RIGHT, padx=5)
-    
-        # 설명 표시 영역
-        description_frame = ttk.LabelFrame(cheat_frame, text="치트 설명", padding="10")
-        description_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # 결과 목록 리스트박스
+        list_frame = ttk.Frame(results_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        self.description_text = tk.Text(description_frame, wrap=tk.WORD, width=70, height=10, 
-                                  font=("Courier", 10), state=tk.DISABLED)
-        self.description_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.results_listbox = tk.Listbox(list_frame, width=70, height=12, font=("Arial", 10))
+        self.results_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.results_listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.results_listbox.config(yscrollcommand=scrollbar.set)
+        
+        # 결과 선택 이벤트 바인딩
+        self.results_listbox.bind('<<ListboxSelect>>', self.on_result_selected)
+        
+        # 치트 변수 초기화 (내부적으로 사용)
+        self.cheat_var = tk.StringVar()
     
     def on_category_selected(self, event):
         """카테고리가 선택되었을 때 호출되는 함수"""
@@ -205,6 +245,9 @@ class GameCheaterGUI:
             widget.destroy()
         
         if category == "필터":
+            # UI를 결과 목록 방식으로 변경
+            self.create_results_list_ui()
+            
             # 필터 하위 카테고리 드롭다운 생성
             ttk.Label(self.subcategory_frame, text="필터 항목:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
             
@@ -222,6 +265,9 @@ class GameCheaterGUI:
                 self.subcategory_combo.current(0)
             
         elif category == "검색":
+            # UI를 결과 목록 방식으로 변경
+            self.create_results_list_ui()
+            
             # 검색 입력 필드 생성
             ttk.Label(self.subcategory_frame, text="검색어:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
             
@@ -234,7 +280,29 @@ class GameCheaterGUI:
             search_btn.grid(row=0, column=2, padx=5, pady=5)
             
         else:  # 기타 카테고리 선택 시
+            # UI를 드롭다운 방식으로 변경
+            self.create_cheat_selection_ui()
             self.select_category(category)
+            
+    def on_result_selected(self, event):
+        """결과 목록에서 항목이 선택되었을 때 호출되는 함수"""
+        if not hasattr(self, 'results_listbox'):
+            return
+            
+        selection = self.results_listbox.curselection()
+        if not selection:
+            return
+            
+        index = selection[0]
+        selected_item = self.results_listbox.get(index)
+        
+        self.log(f"결과 항목 선택됨: '{selected_item}'")
+        
+        # 치트 변수에 선택된 항목 설정 (내부용)
+        self.cheat_var.set(selected_item)
+        
+        # 선택된 항목에 대한 설명 업데이트
+        self.on_cheat_selected(None)
             
     def apply_filter(self):
         """필터 하위 카테고리 선택 적용"""
@@ -325,11 +393,17 @@ class GameCheaterGUI:
             
             # 데이터 필터링 (등급이 '전체'가 아닌 경우)
             if grade:
-                # 'grade' 열이 있는지 확인
-                if 'grade' not in df.columns:
-                    self.log(f"경고: '{excel_file}'에 'grade' 열이 없습니다. 필터링을 건너뜁니다.")
+                # 'grade' 또는 'Grade' 열이 있는지 확인
+                grade_column = None
+                for col in df.columns:
+                    if col.lower() == 'grade':
+                        grade_column = col
+                        break
+                
+                if grade_column is None:
+                    self.log(f"경고: '{excel_file}'에 'grade' 또는 'Grade' 열이 없습니다. 필터링을 건너뜁니다.")
                 else:
-                    df = df[df['grade'].str.lower() == grade.lower()]
+                    df = df[df[grade_column].str.lower() == grade.lower()]
                     self.log(f"등급 '{grade_text}' 기준으로 필터링되었습니다. {len(df)}개 항목 발견.")
             
             # 결과 표시
@@ -385,10 +459,23 @@ class GameCheaterGUI:
                         cheat_display_names.append(cheat)
                         self.full_cheat_data[cheat] = cheat
                 
-                self.cheat_combo['values'] = cheat_display_names
-                if len(cheat_display_names) > 0:
-                    self.cheat_combo.current(0)
-                    self.on_cheat_selected(None)
+                # 카테고리 타입에 따라 다른 UI 사용
+                if self.category_var.get() == "기타":
+                    # 드롭다운 방식 (기본)
+                    self.cheat_combo['values'] = cheat_display_names
+                    if len(cheat_display_names) > 0:
+                        self.cheat_combo.current(0)
+                        self.on_cheat_selected(None)
+                else:
+                    # 리스트박스 방식 (필터, 검색)
+                    if hasattr(self, 'results_listbox'):
+                        self.results_listbox.delete(0, tk.END)
+                        for item in cheat_display_names:
+                            self.results_listbox.insert(tk.END, item)
+                        if len(cheat_display_names) > 0:
+                            self.results_listbox.selection_set(0)
+                            self.results_listbox.see(0)
+                            self.on_result_selected(None)
                 
                 self.log(f"'{category}' 카테고리에 {len(cheat_list)}개 치트 로드됨")
             else:
@@ -421,17 +508,33 @@ class GameCheaterGUI:
                     # 치트 데이터 저장
                     if " — " in cheat:
                         self.full_cheat_data[f"[{category_name}] {display_name}"] = cheat
-                    
-        # 검색 결과가 있으면 치트 콤보박스 업데이트
-        if filtered_cheats:
-            self.cheat_combo['values'] = filtered_cheats
-            self.cheat_combo.current(0)
-            self.on_cheat_selected(None)
-            self.log(f"검색 결과: {len(filtered_cheats)}개 항목 발견")
+        
+        # 검색 결과 표시 (리스트박스 방식)
+        if hasattr(self, 'results_listbox'):
+            self.results_listbox.delete(0, tk.END)
+            
+            if filtered_cheats:
+                for item in filtered_cheats:
+                    self.results_listbox.insert(tk.END, item)
+                # 첫 번째 항목 선택
+                self.results_listbox.selection_set(0)
+                self.results_listbox.see(0)
+                self.on_result_selected(None)
+                self.log(f"검색 결과: {len(filtered_cheats)}개 항목 발견")
+            else:
+                self.results_listbox.insert(tk.END, "검색 결과 없음")
+                self.log("검색 결과가 없습니다.")
         else:
-            self.cheat_combo['values'] = ["검색 결과 없음"]
-            self.cheat_combo.current(0)
-            self.log("검색 결과가 없습니다.")
+            # 드롭다운 방식 (예전 방식 호환성 유지)
+            if filtered_cheats:
+                self.cheat_combo['values'] = filtered_cheats
+                self.cheat_combo.current(0)
+                self.on_cheat_selected(None)
+                self.log(f"검색 결과: {len(filtered_cheats)}개 항목 발견")
+            else:
+                self.cheat_combo['values'] = ["검색 결과 없음"]
+                self.cheat_combo.current(0)
+                self.log("검색 결과가 없습니다.")
     
     def select_category(self, category):
         """카테고리 선택 시 해당 카테고리의 치트만 표시"""

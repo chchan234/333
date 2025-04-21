@@ -428,31 +428,39 @@ class GameCheaterGUI:
                 
             # 데이터를 치트 형식으로 변환
             cheat_list = []
+            
+            # 필수 컬럼 확인 - name과 id 컬럼이 모두 있는지 미리 확인
+            if 'name' not in df.columns or 'id' not in df.columns:
+                self.log(f"경고: '{excel_file}'에 'name' 또는 'id' 열이 없습니다.")
+                # 리스트박스 초기화하고 메시지 표시
+                if hasattr(self, 'results_listbox'):
+                    self.results_listbox.delete(0, tk.END)
+                    self.results_listbox.insert(tk.END, "필수 컬럼이 없어 데이터를 로드할 수 없습니다")
+                return
+            
             for _, row in df.iterrows():
-                # 필수 컬럼 확인 (name과 id는 반드시 있어야 함)
-                if 'name' in df.columns and 'id' in df.columns:
-                    name = str(row['name'])
-                    id_value = str(row['id'])
-                    
-                    # 카테고리별 형식에 맞게 치트 코드 생성
-                    if category == "아바타":
-                        cheat_code = f"GT.Avatar{id_value}"
-                    elif category == "아스터":
-                        cheat_code = f"GT.Aster{id_value}"
-                    elif category == "아이템":
-                        cheat_code = f"GT.Item{id_value}"
-                    elif category == "정령":
-                        cheat_code = f"GT.Spirit{id_value}"
-                    elif category == "탈것":
-                        cheat_code = f"GT.Vehicle{id_value}"
-                    elif category == "무기소울":
-                        cheat_code = f"GT.WeaponSoul{id_value}"
-                    else:
-                        cheat_code = f"GT.{category}{id_value}"
-                    
-                    # 치트 형식으로 추가
-                    full_cheat = f"{name} — {cheat_code}"
-                    cheat_list.append(full_cheat)
+                name = str(row['name'])
+                id_value = str(row['id'])
+                
+                # 카테고리별 형식에 맞게 치트 코드 생성
+                if category == "아바타":
+                    cheat_code = f"GT.Avatar{id_value}"
+                elif category == "아스터":
+                    cheat_code = f"GT.Aster{id_value}"
+                elif category == "아이템":
+                    cheat_code = f"GT.Item{id_value}"
+                elif category == "정령":
+                    cheat_code = f"GT.Spirit{id_value}"
+                elif category == "탈것":
+                    cheat_code = f"GT.Vehicle{id_value}"
+                elif category == "무기소울":
+                    cheat_code = f"GT.WeaponSoul{id_value}"
+                else:
+                    cheat_code = f"GT.{category}{id_value}"
+                
+                # 치트 형식으로 추가
+                full_cheat = f"{name} — {cheat_code}"
+                cheat_list.append(full_cheat)
                     
             # 치트 목록 업데이트
             if cheat_list:
@@ -486,7 +494,16 @@ class GameCheaterGUI:
                 
                 self.log(f"'{category}' 카테고리에 {len(cheat_list)}개 치트 로드됨")
             else:
-                self.log("치트 코드 생성에 필요한 데이터가 부족합니다.")
+                # "전체" 등급 선택 시 별도 메시지
+                if grade_text == "전체":
+                    self.log(f"'{category}' 카테고리에 항목이 없습니다.")
+                else:
+                    self.log("치트 코드 생성에 필요한 데이터가 부족합니다.")
+                
+                # 리스트박스 초기화하고 메시지 표시
+                if hasattr(self, 'results_listbox'):
+                    self.results_listbox.delete(0, tk.END)
+                    self.results_listbox.insert(tk.END, "해당 필터 조건에 맞는 항목이 없습니다")
                 
         except Exception as e:
             self.log(f"엑셀 파일 처리 중 오류 발생: {e}")

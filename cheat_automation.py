@@ -493,14 +493,24 @@ class GameCheaterGUI:
                 cheat_display_names = []
                 self.full_cheat_data = {}
                 
+                # 디버깅 로그
+                self.log("==== 치트 데이터 처리 시작 ====")
+                
                 for cheat in cheat_list:
+                    self.log(f"처리 중인 치트 항목: '{cheat}'")
+                    
                     if " — " in cheat:
                         display_name = cheat.split(" — ")[0]
                         cheat_display_names.append(display_name)
                         self.full_cheat_data[display_name] = cheat
+                        self.log(f"항목 추가: 표시명='{display_name}', 전체='{cheat}'")
                     else:
                         cheat_display_names.append(cheat)
                         self.full_cheat_data[cheat] = cheat
+                        self.log(f"항목 추가(단일): '{cheat}'")
+                        
+                self.log("==== 치트 데이터 처리 완료 ====")
+                self.log(f"총 {len(self.full_cheat_data)}개 항목 처리됨")
                 
                 # 결과를 리스트박스에 표시
                 if hasattr(self, 'results_listbox'):
@@ -827,7 +837,16 @@ class GameCheaterGUI:
             return
         
         # 전체 치트 문자열 가져오기 (코드 포함)
+        self.log("==== 전체 치트 문자열 가져오기 ====")
+        self.log(f"self.full_cheat_data 키 목록: {list(self.full_cheat_data.keys())}")
+        self.log(f"찾는 키: '{selected_cheat_display}'")
+        
         full_cheat = self.full_cheat_data.get(selected_cheat_display, selected_cheat_display)
+        
+        if selected_cheat_display == full_cheat:
+            self.log(f"주의: 전체 치트 문자열을 찾지 못했습니다. 키 '{selected_cheat_display}'가 self.full_cheat_data에 없습니다.")
+        else:
+            self.log(f"성공: 전체 치트 문자열을 찾았습니다: '{full_cheat}'")
         
         # 먼저 치트 메뉴 열기
         self.log("치트 메뉴 열기 시도 중...")
@@ -835,18 +854,33 @@ class GameCheaterGUI:
             self.log("경고: 치트 메뉴를 열지 못했습니다.")
             return
         
+        # 자세한 디버깅 로그
+        self.log(f"===== 치트 실행 시작 =====")
+        self.log(f"현재 카테고리: '{current_category}'")
+        self.log(f"선택된 항목: '{selected_cheat_display}'")
+        self.log(f"전체 치트 문자열: '{full_cheat}'")
+
         # 필터/검색 결과에서 선택한 경우와 일반 치트 선택의 경우를 분리 처리
         if current_category in ["필터", "검색"]:
             # 필터링/검색 결과에서 선택한 경우
             try:
                 # 선택한 아이템 이름 가져오기
                 selected_item_name = selected_cheat_display
+                self.log(f"선택한 아이템 이름: '{selected_item_name}'")
                 
                 # 필터링 결과에서 선택한 경우 (FILTER: 접두어로 식별)
                 if " — [FILTER:" in full_cheat and "]" in full_cheat:
+                    self.log("FILTER 형식 감지됨")
                     # "name — [FILTER:카테고리:ID]" 형식에서 카테고리와 ID 추출
                     filter_part = full_cheat.split(" — [FILTER:")[1].split("]")[0]
-                    category, item_id = filter_part.split(":")
+                    parts = filter_part.split(":")
+                    category = parts[0]
+                    item_id = parts[1]
+                    
+                    # 디버깅을 위한 전체 정보 출력
+                    self.log(f"전체 문자열: '{full_cheat}'")
+                    self.log(f"필터 부분: '{filter_part}'")
+                    self.log(f"분할 결과: {parts}")
                     
                     # 디버깅 로그
                     self.log(f"필터 정보 추출: 카테고리='{category}', ID='{item_id}'")

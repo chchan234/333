@@ -477,8 +477,8 @@ class GameCheaterGUI:
                 
                 # 필터링 엑셀에는 ID와 이름만 필요함
                 # 치트키는 나중에 실행할 때 cheat.xlsx에서 가져올 것임
-                # 지금은 임시 치트 코드 형식만 저장 (category 정보)
-                cheat_code = f"[{category}] {id_value}"
+                # 카테고리 정보와 ID 값을 함께 저장 (이후 치트키와 조합하기 위함)
+                cheat_code = f"[FILTER:{category}:{id_value}]"
                 
                 # 치트 형식으로 추가
                 full_cheat = f"{name} — {cheat_code}"
@@ -836,23 +836,40 @@ class GameCheaterGUI:
             return
         
         # 필터/검색 결과에서 선택한 경우와 일반 치트 선택의 경우를 분리 처리
-        if current_category in ["필터", "검색"] and "[" in full_cheat and "]" in full_cheat:
-            # [카테고리] ID 형식에서 카테고리와 ID 추출
+        if current_category in ["필터", "검색"]:
+            # 필터링/검색 결과에서 선택한 경우
             try:
-                parts = full_cheat.split(" — ")[1].strip()  # "name — [category] id" 형식에서 "[category] id" 부분 추출
-                category_match = parts.split("]")[0] + "]"  # "[category]" 부분 추출
-                category = category_match.strip("[]")  # "category" 부분 추출
-                id_value = parts.split("]")[1].strip()  # "id" 부분 추출
+                # 선택한 아이템 이름 가져오기
+                selected_item_name = selected_cheat_display
                 
-                # cheat.xlsx에서 해당 카테고리의 치트키 형식 찾기
-                cheat_code = self.get_cheat_format_from_cheat_xlsx(category, id_value)
-                
-                if not cheat_code:
-                    # 치트키 형식을 찾지 못한 경우, 기본 형식 사용
-                    self.log(f"경고: '{category}' 카테고리의 치트키 형식을 찾을 수 없습니다. 기본 형식을 사용합니다.")
-                    cheat_code = f"GT.{category.upper()} {id_value}"
+                # 필터링 결과에서 선택한 경우 (FILTER: 접두어로 식별)
+                if " — [FILTER:" in full_cheat and "]" in full_cheat:
+                    # "name — [FILTER:카테고리:ID]" 형식에서 카테고리와 ID 추출
+                    filter_part = full_cheat.split(" — [FILTER:")[1].split("]")[0]
+                    category, item_id = filter_part.split(":")
+                    
+                    # 디버깅 로그
+                    self.log(f"필터 정보 추출: 카테고리='{category}', ID='{item_id}'")
+                    
+                    # cheat.xlsx에서 해당 카테고리의 치트키 형식 찾기
+                    cheat_key = self.get_cheat_format_from_cheat_xlsx(category)
+                    
+                    if not cheat_key:
+                        # 치트키 형식을 찾지 못한 경우, 기본 형식 사용
+                        cheat_key = f"GT.{category.upper()}"
+                        self.log(f"경고: '{category}' 카테고리의 치트키를 찾을 수 없습니다. 기본 형식 사용: {cheat_key}")
+                    
+                    # 최종 치트 코드 생성
+                    cheat_code = f"{cheat_key} {item_id}"
+                    self.log(f"생성된 치트 코드: {cheat_code} (아이템: {selected_item_name}, ID: {item_id})")
+                else:
+                    # 기존 형식이 아닌 경우 그대로 사용
+                    cheat_code = full_cheat.split(" — ")[1] if " — " in full_cheat else full_cheat
+                    self.log(f"기존 치트 코드 사용: {cheat_code}")
             except Exception as e:
-                self.log(f"치트 코드 추출 중 오류 발생: {e}")
+                self.log(f"치트 코드 생성 중 오류 발생: {e}")
+                import traceback
+                self.log(traceback.format_exc())
                 # 기본 형식 사용
                 cheat_code = full_cheat.split(" — ")[1] if " — " in full_cheat else full_cheat
         else:
@@ -884,7 +901,7 @@ class GameCheaterGUI:
         # 치트 실행
         self.execute_cheat(cheat_code)
         
-    def get_cheat_format_from_cheat_xlsx(self, category, id_value):
+    def get_cheat_format_from_cheat_xlsx(self, category):
         """cheat.xlsx에서 해당 카테고리의 치트키 형식을 찾아 반환"""
         try:
             if not os.path.exists(CHEAT_FILE):
@@ -903,9 +920,10 @@ class GameCheaterGUI:
                 if all(pd.isna(x) for x in row):
                     continue
                 
-                # 카테고리 행 확인
+                # 카테고리 행 확인 (대소문자 구분 없이 포함 여부 확인)
                 if not pd.isna(row[0]) and category.lower() in str(row[0]).lower():
                     category_found = True
+                    self.log(f"'{category}' 카테고리 발견: {row[0]}")
                     continue
                 
                 # 해당 카테고리의 첫 번째 치트키 찾기 (카테고리 이후)
@@ -913,13 +931,14 @@ class GameCheaterGUI:
                     cheat_key = str(row[2]).strip()
                     
                     # 치트키에서 ID 부분 제거하고 기본 형식만 추출
+                    # 예: "GT.CREAT_ITEM 1234" -> "GT.CREAT_ITEM"
                     if " " in cheat_key:
                         cheat_format = cheat_key.split(" ")[0]  # 공백 앞부분만 가져오기
                         self.log(f"'{category}' 카테고리의 치트키 형식 찾음: {cheat_format}")
-                        return f"{cheat_format} {id_value}"
+                        return cheat_format
                     else:
                         self.log(f"'{category}' 카테고리의 치트키 형식 찾음: {cheat_key}")
-                        return f"{cheat_key} {id_value}"
+                        return cheat_key
             
             self.log(f"경고: '{category}' 카테고리의 치트키 형식을 cheat.xlsx에서 찾을 수 없습니다.")
             return None

@@ -412,19 +412,13 @@ class GameCheaterGUI:
                 elif col.lower() == 'grade':
                     column_map['grade'] = col
             
-            # 필수 컬럼이 존재하는지 확인
-            missing_columns = []
-            if 'name' not in column_map:
-                missing_columns.append('name')
-            if 'id' not in column_map:
-                missing_columns.append('id')
-                
-            if missing_columns:
-                self.log(f"경고: '{excel_file}'에 필수 열이 없습니다: {', '.join(missing_columns)}")
+            # Grade 열이 있는지 확인 (등급 필터링 용)
+            if grade and 'grade' not in column_map:
+                self.log(f"경고: '{excel_file}'에 'Grade' 열이 없습니다. 등급 필터링을 할 수 없습니다.")
                 # 리스트박스 초기화하고 메시지 표시
                 if hasattr(self, 'results_listbox'):
                     self.results_listbox.delete(0, tk.END)
-                    self.results_listbox.insert(tk.END, "필수 컬럼이 없어 데이터를 로드할 수 없습니다")
+                    self.results_listbox.insert(tk.END, "Grade 컬럼이 없어 등급 필터링을 할 수 없습니다")
                 return
             
             # 데이터 필터링 (등급이 '전체'가 아닌 경우)
@@ -433,8 +427,6 @@ class GameCheaterGUI:
                 # 영어 등급명으로 필터링 (소문자로 비교)
                 df = df[df[grade_column].str.lower() == grade.lower()]
                 self.log(f"등급 '{grade_text}' 기준으로 필터링되었습니다. {len(df)}개 항목 발견.")
-            elif grade and 'grade' not in column_map:
-                self.log(f"경고: '{excel_file}'에 'Grade' 열이 없습니다. 등급 필터링을 건너뜁니다.")
             
             # 결과 표시
             if len(df) == 0:
@@ -445,6 +437,37 @@ class GameCheaterGUI:
                     self.results_listbox.insert(tk.END, "검색 결과 없음")
                 return
                 
+            # 이제 치트 생성을 위해 name과 id 열이 필요한지 확인
+            if 'name' not in column_map or 'id' not in column_map:
+                missing_columns = []
+                if 'name' not in column_map:
+                    missing_columns.append('name')
+                if 'id' not in column_map:
+                    missing_columns.append('id')
+                
+                self.log(f"경고: '{excel_file}'에 치트 생성에 필요한 열이 없습니다: {', '.join(missing_columns)}")
+                
+                # 필터링 결과만 보여주기
+                if hasattr(self, 'results_listbox'):
+                    self.results_listbox.delete(0, tk.END)
+                    
+                    # Grade 열만으로 결과 표시 (치트 코드 생성은 안 함)
+                    for idx, row in df.iterrows():
+                        grade_value = row[column_map['grade']] if 'grade' in column_map else "N/A"
+                        item_name = row[column_map['name']] if 'name' in column_map else f"항목 #{idx+1}"
+                        
+                        # 표시할 텍스트 구성
+                        display_text = f"{item_name} (등급: {grade_value})"
+                        self.results_listbox.insert(tk.END, display_text)
+                    
+                    # 첫 번째 항목 선택
+                    if self.results_listbox.size() > 0:
+                        self.results_listbox.selection_set(0)
+                        self.results_listbox.see(0)
+                
+                self.log(f"'{category}' 카테고리에서 {len(df)}개 항목이 필터링되었습니다 (치트 코드 생성 불가)")
+                return
+                
             # 데이터를 치트 형식으로 변환
             cheat_list = []
             
@@ -452,21 +475,27 @@ class GameCheaterGUI:
                 name = str(row[column_map['name']])
                 id_value = str(row[column_map['id']])
                 
-                # 카테고리별 형식에 맞게 치트 코드 생성
-                if category == "아바타":
-                    cheat_code = f"GT.Avatar{id_value}"
-                elif category == "아스터":
-                    cheat_code = f"GT.Aster{id_value}"
-                elif category == "아이템":
-                    cheat_code = f"GT.Item{id_value}"
-                elif category == "정령":
-                    cheat_code = f"GT.Spirit{id_value}"
-                elif category == "탈것":
-                    cheat_code = f"GT.Vehicle{id_value}"
-                elif category == "무기소울":
-                    cheat_code = f"GT.WeaponSoul{id_value}"
+                # 치트키 컬럼이 있는지 확인
+                cheatkey_column = None
+                for col in df.columns:
+                    if col.lower() == '치트키' or col.lower() == 'cheatkey' or col.lower() == 'key':
+                        cheatkey_column = col
+                        break
+                
+                # 치트키 컬럼이 있으면 그 값을 사용
+                if cheatkey_column and not pd.isna(row[cheatkey_column]):
+                    # 엑셀에서 정의된 치트키 그대로 사용
+                    cheat_code = str(row[cheatkey_column])
+                    
+                    # 치트키에 ID 값 추가 (필요시)
+                    if cheat_code.endswith(' {id}') or cheat_code.endswith(' {ID}'):
+                        cheat_code = cheat_code.replace('{id}', id_value).replace('{ID}', id_value)
+                    elif not (' ' in cheat_code):  # 공백이 없으면 ID 값 추가
+                        cheat_code = f"{cheat_code} {id_value}"
                 else:
-                    cheat_code = f"GT.{category}{id_value}"
+                    # 치트키 컬럼이 없는 경우 - 로그 기록
+                    self.log(f"경고: '{excel_file}'에 치트키 열이 없습니다. 이 항목은 건너뜁니다.")
+                    continue
                 
                 # 치트 형식으로 추가
                 full_cheat = f"{name} — {cheat_code}"
@@ -750,9 +779,10 @@ class GameCheaterGUI:
                 self.cheat_categories = default_categories.copy()
                 
                 # 치트 예시 추가 (모두 기타 카테고리에 추가)
-                self.cheat_categories["기타"].append("기본 아바타 — GT.AvatarBasic")
-                self.cheat_categories["기타"].append("치유 물약 — GT.Item.Potion")
-                self.cheat_categories["기타"].append("체력 회복 — GT.Heal({HP})")
+                # 참고: 엑셀 파일에 정의된 대로 치트키 형식 사용
+                self.cheat_categories["기타"].append("기본 아바타 — GT.AVATAR Basic")
+                self.cheat_categories["기타"].append("치유 물약 — GT.ITEM Potion")
+                self.cheat_categories["기타"].append("체력 회복 — GT.HEAL({HP})")
                 
                 # 카테고리 콤보박스 업데이트 - 기타, 필터, 검색만 표시
                 self.category_combo['values'] = self.category_menu_options
@@ -772,9 +802,10 @@ class GameCheaterGUI:
             default_categories["기타"] = []
             
             # 치트 예시 추가 (모두 기타 카테고리에 추가)
-            default_categories["기타"].append("기본 아바타 — GT.AvatarBasic")
-            default_categories["기타"].append("치유 물약 — GT.Item.Potion")
-            default_categories["기타"].append("체력 회복 — GT.Heal({HP})")
+            # 참고: 엑셀 파일에 정의된 대로 치트키 형식 사용
+            default_categories["기타"].append("기본 아바타 — GT.AVATAR Basic")
+            default_categories["기타"].append("치유 물약 — GT.ITEM Potion")
+            default_categories["기타"].append("체력 회복 — GT.HEAL({HP})")
             
             self.log("기본 카테고리 생성 중...")
             self.cheat_categories = default_categories

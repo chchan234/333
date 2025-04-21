@@ -402,20 +402,39 @@ class GameCheaterGUI:
             self.log(f"'{excel_file}' 파일 로드 중...")
             df = pd.read_excel(excel_path)
             
-            # 데이터 필터링 (등급이 '전체'가 아닌 경우)
-            if grade:
-                # 'grade' 또는 'Grade' 열이 있는지 확인
-                grade_column = None
-                for col in df.columns:
-                    if col.lower() == 'grade':
-                        grade_column = col
-                        break
+            # 자동으로 열 이름 탐지 (대소문자 구분 없이)
+            column_map = {}
+            for col in df.columns:
+                if col.lower() == 'name':
+                    column_map['name'] = col
+                elif col.lower() == 'id':
+                    column_map['id'] = col
+                elif col.lower() == 'grade':
+                    column_map['grade'] = col
+            
+            # 필수 컬럼이 존재하는지 확인
+            missing_columns = []
+            if 'name' not in column_map:
+                missing_columns.append('name')
+            if 'id' not in column_map:
+                missing_columns.append('id')
                 
-                if grade_column is None:
-                    self.log(f"경고: '{excel_file}'에 'grade' 또는 'Grade' 열이 없습니다. 필터링을 건너뜁니다.")
-                else:
-                    df = df[df[grade_column].str.lower() == grade.lower()]
-                    self.log(f"등급 '{grade_text}' 기준으로 필터링되었습니다. {len(df)}개 항목 발견.")
+            if missing_columns:
+                self.log(f"경고: '{excel_file}'에 필수 열이 없습니다: {', '.join(missing_columns)}")
+                # 리스트박스 초기화하고 메시지 표시
+                if hasattr(self, 'results_listbox'):
+                    self.results_listbox.delete(0, tk.END)
+                    self.results_listbox.insert(tk.END, "필수 컬럼이 없어 데이터를 로드할 수 없습니다")
+                return
+            
+            # 데이터 필터링 (등급이 '전체'가 아닌 경우)
+            if grade and 'grade' in column_map:
+                grade_column = column_map['grade']
+                # 영어 등급명으로 필터링 (소문자로 비교)
+                df = df[df[grade_column].str.lower() == grade.lower()]
+                self.log(f"등급 '{grade_text}' 기준으로 필터링되었습니다. {len(df)}개 항목 발견.")
+            elif grade and 'grade' not in column_map:
+                self.log(f"경고: '{excel_file}'에 'Grade' 열이 없습니다. 등급 필터링을 건너뜁니다.")
             
             # 결과 표시
             if len(df) == 0:
@@ -429,18 +448,9 @@ class GameCheaterGUI:
             # 데이터를 치트 형식으로 변환
             cheat_list = []
             
-            # 필수 컬럼 확인 - name과 id 컬럼이 모두 있는지 미리 확인
-            if 'name' not in df.columns or 'id' not in df.columns:
-                self.log(f"경고: '{excel_file}'에 'name' 또는 'id' 열이 없습니다.")
-                # 리스트박스 초기화하고 메시지 표시
-                if hasattr(self, 'results_listbox'):
-                    self.results_listbox.delete(0, tk.END)
-                    self.results_listbox.insert(tk.END, "필수 컬럼이 없어 데이터를 로드할 수 없습니다")
-                return
-            
             for _, row in df.iterrows():
-                name = str(row['name'])
-                id_value = str(row['id'])
+                name = str(row[column_map['name']])
+                id_value = str(row[column_map['id']])
                 
                 # 카테고리별 형식에 맞게 치트 코드 생성
                 if category == "아바타":

@@ -884,14 +884,25 @@ class GameCheaterGUI:
                     
                     # 디버깅 로그
                     self.log(f"필터 정보 추출: 카테고리='{category}', ID='{item_id}'")
+                    self.log(f"치트 정보: 아이템명='{selected_item_name}'")
                     
-                    # cheat.xlsx에서 해당 카테고리의 치트키 형식 찾기
-                    cheat_key = self.get_cheat_format_from_cheat_xlsx(category)
+                    # 카테고리별 치트 코드 매핑 (하드코딩)
+                    category_map = {
+                        "아바타": "GT.SC AVATAR",
+                        "아스터": "GT.SC ASTER",
+                        "아이템": "GT.SC ITEM",
+                        "정령": "GT.SC SPIRIT",
+                        "탈것": "GT.SC VEHICLE",
+                        "무기소울": "GT.SC WSOUL"
+                    }
+                    
+                    # 해당 카테고리의 치트 코드 가져오기
+                    cheat_key = category_map.get(category)
                     
                     if not cheat_key:
-                        # 치트키 형식을 찾지 못한 경우, 기본 형식 사용
-                        cheat_key = f"GT.{category.upper()}"
-                        self.log(f"경고: '{category}' 카테고리의 치트키를 찾을 수 없습니다. 기본 형식 사용: {cheat_key}")
+                        # 알 수 없는 카테고리인 경우 기본 형식 사용
+                        cheat_key = f"GT.SC {category.upper()}"
+                        self.log(f"경고: 알 수 없는 카테고리 '{category}'. 기본 형식 사용: {cheat_key}")
                     
                     # 최종 치트 코드 생성
                     cheat_code = f"{cheat_key} {item_id}"

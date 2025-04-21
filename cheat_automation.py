@@ -888,12 +888,12 @@ class GameCheaterGUI:
                     
                     # 카테고리별 치트 코드 매핑 (하드코딩)
                     category_map = {
-                        "아바타": "GT.SC AVATAR",
-                        "아스터": "GT.SC ASTER",
-                        "아이템": "GT.SC ITEM",
-                        "정령": "GT.SC SPIRIT",
-                        "탈것": "GT.SC VEHICLE",
-                        "무기소울": "GT.SC WSOUL"
+                        "아바타": "GT.SC CREATE_AVATAR",
+                        "아스터": "GT.SC CREATE_ASTER",
+                        "아이템": "GT.SC CREATE_ITEM",
+                        "정령": "GT.SC CREATE_SPIRIT",
+                        "탈것": "GT.SC CREATE_VEHICLE",
+                        "무기소울": "GT.SC CREATE_WSOUL"
                     }
                     
                     # 해당 카테고리의 치트 코드 가져오기
@@ -901,7 +901,7 @@ class GameCheaterGUI:
                     
                     if not cheat_key:
                         # 알 수 없는 카테고리인 경우 기본 형식 사용
-                        cheat_key = f"GT.SC {category.upper()}"
+                        cheat_key = f"GT.SC CREATE_{category.upper()}"
                         self.log(f"경고: 알 수 없는 카테고리 '{category}'. 기본 형식 사용: {cheat_key}")
                     
                     # 최종 치트 코드 생성
